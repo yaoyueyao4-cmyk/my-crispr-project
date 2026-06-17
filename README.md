@@ -1,4 +1,4 @@
-# CRISPR-FMC: A Dual-Channel Deep Learning Model for Prokaryotic sgRNA Cleavage Activity Prediction
+# A Dual-Channel Deep Learning Model for Prokaryotic sgRNA Cleavage Activity Prediction
 
 > **A Prokaryotic sgRNA Cleavage Activity Prediction Model Integrating Local Multi-Scale Convolution and Global RNA Semantic Representations.**
 
@@ -16,40 +16,19 @@ CRISPR-FMC is a robust, dual-channel deep learning framework designed to predict
 ---
 
 ## 📐 Model Architecture
-The model architecture consists of two parallel branches that are concatenated before the final classification head. 
+
+The model architecture consists of two parallel feature extraction branches that are concatenated before the final classification head.
 
 ### 1. Local Sequence Branch (Multi-Scale CNN)
-The input sequence is mapped from a discrete one-hot space to a continuous 16-dimensional embedding space. Three parallel 1D-CNNs capture distinct motif lengths:
-
-$$
-f_{local} = \text{Flatten}( \text{Pool}(\text{CNN}_3(E)) \parallel \text{Pool}(\text{CNN}_5(E)) \parallel \text{Pool}(\text{CNN}_7(E)) )
-$$
+The input sequence is mapped from a discrete one-hot space to a continuous 16-dimensional embedding space. To capture distinct local motif lengths, the model employs three parallel 1D-Convolutional Neural Networks with kernel sizes of 3, 5, and 7. The outputs are processed through max and average pooling layers and flattened to form the comprehensive local feature representation.
 
 ### 2. Global Semantic Branch (RNA-FM)
-The sequence is processed through the pre-trained RNA-FM model to extract 640-dimensional semantic features, which are then compressed via an information bottleneck:
-
-$$
-f_{global} = \text{Dropout}( \text{BatchNorm}( \text{Dense}_{64}( \text{RNA-FM}(S) ) ) )
-$$
+The sequence is processed through the pre-trained RNA-FM foundation model to extract 640-dimensional high-level semantic features. These features are then passed through an information bottleneck (a Dense layer with 64 units) followed by Batch Normalization and Dropout. This compression filters out redundant background noise and retains the core folding and evolutionary semantics.
 
 ### 3. Fusion & Optimization
-The concatenated feature vector is passed through an MLP to yield the final predicted probability $\hat{y}$:
-
-$$
-\hat{y} = \sigma( \text{MLP}( [f_{local} \parallel f_{global}] ) )
-$$
-
-The network is optimized using Binary Cross-Entropy (BCE) loss with $L_2$ regularization to prevent overfitting:
-
-$$
-\mathcal{L} = -\frac{1}{N} \sum_{i=1}^{N} [ y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i) ] + \lambda ||W||_2^2
-$$
-
-During inference, a soft-voting ensemble strategy is applied across $K=5$ models:
-
-$$
-P_{ensemble} = \frac{1}{K} \sum_{k=1}^{K} \hat{y}_k
-$$
+The local sequence features and global semantic features are concatenated and fed into a Multi-Layer Perceptron (MLP) classification head to yield the final predicted probability. 
+* **Loss Function:** The network is optimized using standard Binary Cross-Entropy (BCE) loss combined with L2 regularization to prevent overfitting.
+* **Inference Strategy:** During inference, a soft-voting ensemble strategy is applied. The final score is the arithmetic mean of the predicted probabilities from 5 independently trained sub-models, ensuring robust performance.
 
 ---
 
